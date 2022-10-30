@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "94791450025",
+    "project_id": "assesmentintern",
+    "storage_bucket": "assesmentintern.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:94791450025:android:275a7fb6e10e130a6298b8",
+        "android_client_info": {
+          "package_name": "dev.jahidhasanco.assesment"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "94791450025-sg90odld996quskvlkc56ib6nemqf58a.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJfoXRJViOqdbBo-7WkEScZE7n2200RhA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "94791450025-sg90odld996quskvlkc56ib6nemqf58a.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
