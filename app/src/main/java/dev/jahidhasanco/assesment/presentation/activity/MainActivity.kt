@@ -1,8 +1,12 @@
 package dev.jahidhasanco.assesment.presentation.activity
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.StrictMode
+import android.os.StrictMode.VmPolicy
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
@@ -19,7 +23,15 @@ import dev.jahidhasanco.assesment.databinding.UserItemDialogBinding
 import dev.jahidhasanco.assesment.presentation.adapter.OnUserClickListener
 import dev.jahidhasanco.assesment.presentation.adapter.UserAdapter
 import dev.jahidhasanco.assesment.presentation.viewmodel.StorageViewModel
+import dev.jahidhasanco.assesment.utils.cashing.DownloadResult
+import dev.jahidhasanco.assesment.utils.cashing.Downloader
 import dev.jahidhasanco.assesment.utils.temp.UserTempData
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity(), OnUserClickListener {
@@ -35,6 +47,8 @@ class MainActivity : AppCompatActivity(), OnUserClickListener {
         binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
         storageViewModel.getUser()
         userAdapter.setOnItemClickListener(this)
+
+        binding.progressBarH.max = 100
 
         lifecycle.coroutineScope.launchWhenCreated {
             storageViewModel.getUserDataStatus.collect {
@@ -132,11 +146,51 @@ class MainActivity : AppCompatActivity(), OnUserClickListener {
     }
 
     override fun onItemResumeClick(user: User) {
-        viewPdf(user.resume)
+        cashingPdfFile(user.resume)
     }
 
-    private fun viewPdf(value: String) {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(value))
-        startActivity(intent)
+    private fun cashingPdfFile(resume: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            Downloader.downloadFile(
+                this@MainActivity, resume
+            )
+                .collect {
+                    withContext(Dispatchers.Main) {
+                        when (it) {
+                            is DownloadResult.Success -> {
+                                Toast
+                                    .makeText(this@MainActivity, "Load success", Toast.LENGTH_LONG)
+                                    .show()
+                                binding.progressBarH.visibility = View.GONE
+                                showPdf(it.output)
+                            }
+                            is DownloadResult.Error -> {
+                                Log.e("Download", "Error: ${it.message}")
+                            }
+                            is DownloadResult.Progress -> {
+                                binding.progressBarH.visibility = View.VISIBLE
+                                binding.progressBarH.progress = it.progress
+                            }
+                        }
+                    }
+                }
+        }
+    }
+
+    private fun showPdf(f: File) {
+        Toast.makeText(this, "Show pdf ${f.canRead()}", Toast.LENGTH_SHORT).show()
+        val builder = VmPolicy.Builder()
+        StrictMode.setVmPolicy(builder.build())
+        val intent = Intent(Intent.ACTION_VIEW)
+        intent.setDataAndType(Uri.parse(f.toString()), "application/pdf")
+        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
+        intent.flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+        try {
+            startActivity(intent)
+        } catch (e: ActivityNotFoundException) {
+            Toast.makeText(this, "No Application available to view pdf", Toast.LENGTH_LONG).show()
+        }
+
     }
 }
+
