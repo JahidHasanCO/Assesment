@@ -24,6 +24,9 @@ class StorageViewModel @Inject constructor(private val repository: StorageReposi
     private val _deleteUserStatus = MutableStateFlow(StringState())
     val deleteUserStatus: StateFlow<StringState> = _deleteUserStatus
 
+    private val _updateUserStatus = MutableStateFlow(StringState())
+    val updateUserStatus: StateFlow<StringState> = _updateUserStatus
+
     private val _getUserDataStatus = MutableStateFlow(UserDataState())
     val getUserDataStatus: StateFlow<UserDataState> = _getUserDataStatus
 
@@ -70,6 +73,22 @@ class StorageViewModel @Inject constructor(private val repository: StorageReposi
                 }
                 is Resource.Success -> {
                     _deleteUserStatus.value = StringState(data = it.data)
+                }
+            }
+        }.launchIn(viewModelScope)
+    }
+
+    fun updateUser(user: User,isResumeChange:Boolean) {
+        repository.updateUser(user,isResumeChange).onEach {
+            when (it) {
+                is Resource.Loading -> {
+                    _updateUserStatus.value = StringState(isLoading = true)
+                }
+                is Resource.Error -> {
+                    _updateUserStatus.value = StringState(error = it.message ?: "")
+                }
+                is Resource.Success -> {
+                    _updateUserStatus.value = StringState(data = it.data)
                 }
             }
         }.launchIn(viewModelScope)

@@ -1,13 +1,13 @@
 package dev.jahidhasanco.assesment.presentation.activity
 
 import android.content.Intent
-import androidx.appcompat.app.AppCompatActivity
+import android.net.Uri
 import android.os.Bundle
 import android.view.View
-import android.widget.Button
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.coroutineScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -19,6 +19,7 @@ import dev.jahidhasanco.assesment.databinding.UserItemDialogBinding
 import dev.jahidhasanco.assesment.presentation.adapter.OnUserClickListener
 import dev.jahidhasanco.assesment.presentation.adapter.UserAdapter
 import dev.jahidhasanco.assesment.presentation.viewmodel.StorageViewModel
+import dev.jahidhasanco.assesment.utils.temp.UserTempData
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity(), OnUserClickListener {
@@ -123,10 +124,19 @@ class MainActivity : AppCompatActivity(), OnUserClickListener {
     }
 
     override fun onItemEditClick(user: User) {
-        Toast.makeText(this, "Edit", Toast.LENGTH_SHORT).show()
+        Intent(this, EditUserActivity::class.java).also {
+            UserTempData.clear()
+            UserTempData.addUser(user)
+            startActivity(it)
+        }
     }
 
     override fun onItemResumeClick(user: User) {
-        Toast.makeText(this, "Resume Clicked ${user.resumeTitle}", Toast.LENGTH_SHORT).show()
+        viewPdf(user.resume)
+    }
+
+    private fun viewPdf(value: String) {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(value))
+        startActivity(intent)
     }
 }

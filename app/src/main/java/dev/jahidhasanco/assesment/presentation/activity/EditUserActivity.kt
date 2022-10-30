@@ -4,14 +4,15 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.text.Editable
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.databinding.DataBindingUtil
 import androidx.documentfile.provider.DocumentFile
@@ -20,30 +21,29 @@ import dagger.hilt.android.AndroidEntryPoint
 import dev.jahidhasanco.assesment.R
 import dev.jahidhasanco.assesment.data.local.getCountryToCity
 import dev.jahidhasanco.assesment.data.model.User
-import dev.jahidhasanco.assesment.databinding.ActivityAddDetailsBinding
+import dev.jahidhasanco.assesment.databinding.ActivityEditUserBinding
 import dev.jahidhasanco.assesment.presentation.viewmodel.StorageViewModel
-import kotlinx.coroutines.flow.collect
-import java.util.*
-import kotlin.collections.ArrayList
+import dev.jahidhasanco.assesment.utils.temp.UserTempData
 
 @AndroidEntryPoint
-class AddDetailsActivity : AppCompatActivity() {
+class EditUserActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityAddDetailsBinding
+    private lateinit var binding: ActivityEditUserBinding
     private val storageViewModel: StorageViewModel by viewModels()
 
     private var country: String? = null
-    private var countryCode: String? = null
     private var cities: List<String> = emptyList()
     private var skills: ArrayList<String> = arrayListOf()
     private var selectedCity: String? = null
     private var selectedDate: String? = null
     private var resumeURI: String? = null
-    private var resumeTitle: String = ""
+    private var resumeTitle: String? = null
+    private var previousResume = ""
+    private var uid = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = DataBindingUtil.setContentView(this, R.layout.activity_add_details)
+        binding = DataBindingUtil.setContentView(this, R.layout.activity_edit_user)
 
         ActivityCompat.requestPermissions(
             this, arrayOf(
@@ -52,30 +52,23 @@ class AddDetailsActivity : AppCompatActivity() {
             ), PackageManager.PERMISSION_GRANTED
         )
 
-        if (binding.ccp.selectedCountryName != null) {
-            country = binding.ccp.selectedCountryName
-            countryCode = binding.ccp.selectedCountryNameCode
-            cities = getCountryToCity(binding.ccp.selectedCountryName, this@AddDetailsActivity)
-            setCity()
-        }
-
         lifecycle.coroutineScope.launchWhenCreated {
-            storageViewModel.addUserStatus.collect {
+            storageViewModel.updateUserStatus.collect {
                 if (it.isLoading) {
                     binding.progressBar.visibility = View.VISIBLE
                 }
                 if (it.error.isNotEmpty()) {
                     binding.progressBar.visibility = View.GONE
-                    Toast.makeText(this@AddDetailsActivity, it.error, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@EditUserActivity, it.error, Toast.LENGTH_SHORT).show()
                 }
                 it.data?.let {
                     binding.progressBar.visibility = View.GONE
                     Toast.makeText(
-                        this@AddDetailsActivity,
-                        "User Added Successfully",
+                        this@EditUserActivity,
+                        "User Update Successfully",
                         Toast.LENGTH_SHORT
                     ).show()
-                    Intent(this@AddDetailsActivity, MainActivity::class.java).also { intent ->
+                    Intent(this@EditUserActivity, MainActivity::class.java).also { intent ->
                         startActivity(intent)
                         finish()
                     }
@@ -83,18 +76,14 @@ class AddDetailsActivity : AppCompatActivity() {
             }
         }
 
-        val today = Calendar.getInstance()
-        binding.datePicker.init(
-            today.get(Calendar.YEAR), today.get(Calendar.MONTH), today.get(Calendar.DAY_OF_MONTH)
-        ) { _, year, month, day ->
-            val m = month + 1
-            selectedDate = "$day/$m/$year"
+
+        UserTempData.getUser()?.let {
+            setupData(it)
         }
 
         binding.ccp.setOnCountryChangeListener {
             country = binding.ccp.selectedCountryName
-            countryCode = binding.ccp.selectedCountryNameCode
-            cities = getCountryToCity(binding.ccp.selectedCountryName, this@AddDetailsActivity)
+            cities = getCountryToCity(binding.ccp.selectedCountryName, this@EditUserActivity)
             setCity()
         }
 
@@ -112,6 +101,38 @@ class AddDetailsActivity : AppCompatActivity() {
 
     }
 
+    private fun setupData(user: User) {
+        uid = user.id
+        previousResume = user.resumeTitle
+        binding.ccp.setCountryForNameCode(user.countryCode)
+        binding.citySpinner.setText(user.city, false)
+        selectedCity = user.city
+        country = user.country
+        binding.apply {
+            nameEtLayout.editText?.setText(user.name)
+            user.skill.forEach {
+                when (it) {
+                    "C" -> cCheckBox.isChecked = true
+                    "Python" -> pythonCheckBox.isChecked = true
+                    "Kotlin" -> kotlinCheckBox.isChecked = true
+                    "Java" -> javaCheckBox.isChecked = true
+                }
+            }
+            selectedDate = user.dateOfBirth
+            val date = user.dateOfBirth.split("/")
+            datePicker.init(
+                date[2].toInt(),
+                date[1].toInt() - 1,
+                date[0].toInt()
+            ) { _, year, month, day ->
+                selectedDate = "$day/${month + 1}/$year"
+            }
+            resumePicker.text = user.resumeTitle
+            resumeTitle = user.resumeTitle
+            resumeURI = user.resume
+        }
+
+    }
 
     private fun nullCheckData() {
         with(binding) {
@@ -122,28 +143,28 @@ class AddDetailsActivity : AppCompatActivity() {
                 nameEtLayout.error = null
             }
             if (country.isNullOrEmpty()) {
-                Toast.makeText(this@AddDetailsActivity, "Country is required", Toast.LENGTH_SHORT)
+                Toast.makeText(this@EditUserActivity, "Country is required", Toast.LENGTH_SHORT)
                     .show()
                 return
             }
             if (selectedCity.isNullOrEmpty()) {
-                Toast.makeText(this@AddDetailsActivity, "City is required", Toast.LENGTH_SHORT)
+                Toast.makeText(this@EditUserActivity, "City is required", Toast.LENGTH_SHORT)
                     .show()
                 return
             }
             if (!selectOneLanguage()) {
-                Toast.makeText(this@AddDetailsActivity, "Select one language", Toast.LENGTH_SHORT)
+                Toast.makeText(this@EditUserActivity, "Select one language", Toast.LENGTH_SHORT)
                     .show()
                 return
             }
             if (selectedDate.isNullOrEmpty()) {
-                Toast.makeText(this@AddDetailsActivity, "Date is required", Toast.LENGTH_SHORT)
+                Toast.makeText(this@EditUserActivity, "Date is required", Toast.LENGTH_SHORT)
                     .show()
                 return
             }
 
             if (resumeURI.isNullOrEmpty()) {
-                Toast.makeText(this@AddDetailsActivity, "Resume is required", Toast.LENGTH_SHORT)
+                Toast.makeText(this@EditUserActivity, "Resume is required", Toast.LENGTH_SHORT)
                     .show()
                 return
             }
@@ -154,18 +175,21 @@ class AddDetailsActivity : AppCompatActivity() {
     }
 
     private fun uploadData() {
-        storageViewModel.addUser(
+        var resumeChange = false
+        if (previousResume != resumeTitle) {
+            resumeChange = true
+        }
+        storageViewModel.updateUser(
             User(
-                id = System.currentTimeMillis().toString(),
+                id = uid,
                 name = binding.nameEtLayout.editText?.text.toString(),
                 country = country!!,
-                countryCode = countryCode!!,
                 city = selectedCity!!,
                 skill = skills,
                 dateOfBirth = selectedDate!!,
                 resume = resumeURI!!,
-                resumeTitle = resumeTitle
-            )
+                resumeTitle = resumeTitle!!
+            ), resumeChange
         )
     }
 
@@ -230,5 +254,6 @@ class AddDetailsActivity : AppCompatActivity() {
 
             }
         }
+
 
 }

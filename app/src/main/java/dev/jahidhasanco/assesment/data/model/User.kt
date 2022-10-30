@@ -4,6 +4,7 @@ data class User(
     val id: String = "",
     val name: String = "",
     val country: String = "",
+    val countryCode: String = "",
     val city: String = "",
     val skill: List<String> = listOf(),
     val dateOfBirth: String = "",

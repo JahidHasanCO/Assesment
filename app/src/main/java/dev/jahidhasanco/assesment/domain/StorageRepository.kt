@@ -31,6 +31,7 @@ class StorageRepository @Inject constructor() {
                 user.id,
                 user.name,
                 user.country,
+                user.countryCode,
                 user.city,
                 user.skill,
                 user.dateOfBirth,
@@ -99,5 +100,50 @@ class StorageRepository @Inject constructor() {
         }
 
     }
+
+    fun updateUser(user: User, resumeChange: Boolean): Flow<Resource<String>> = flow {
+        emit(Resource.Loading())
+
+        try {
+
+            if (resumeChange) {
+                val path = storageReference.child("Document/${user.resumeTitle}")
+                val uploadTask = path.putFile(user.resume.toUri()).await()
+                val downloadUrl = uploadTask.storage.downloadUrl.await()
+
+                val data = User(
+                    user.id,
+                    user.name,
+                    user.country,
+                    user.countryCode,
+                    user.city,
+                    user.skill,
+                    user.dateOfBirth,
+                    downloadUrl.toString(),
+                    user.resumeTitle
+                )
+
+                fireStoreDatabase.collection("User")
+                    .document(user.id)
+                    .set(data).await()
+
+                emit(Resource.Success(data = "User Updated"))
+            } else {
+                fireStoreDatabase.collection("User")
+                    .document(user.id)
+                    .set(user).await()
+
+                emit(Resource.Success(data = "User Updated"))
+            }
+        } catch (e: HttpException) {
+            emit(Resource.Error(message = e.localizedMessage ?: "Unknown Error"))
+        } catch (e: IOException) {
+            emit(Resource.Error(message = e.localizedMessage ?: "Check Your Internet Connection"))
+        } catch (e: Exception) {
+            emit(Resource.Error(message = e.localizedMessage ?: ""))
+        }
+
+    }
+
 
 }
