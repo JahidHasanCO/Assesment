@@ -6,7 +6,6 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.StrictMode
 import android.os.StrictMode.VmPolicy
-import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
@@ -15,6 +14,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.coroutineScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.downloader.OnDownloadListener
+import com.downloader.PRDownloader
 import dagger.hilt.android.AndroidEntryPoint
 import dev.jahidhasanco.assesment.R
 import dev.jahidhasanco.assesment.data.model.User
@@ -23,13 +24,9 @@ import dev.jahidhasanco.assesment.databinding.UserItemDialogBinding
 import dev.jahidhasanco.assesment.presentation.adapter.OnUserClickListener
 import dev.jahidhasanco.assesment.presentation.adapter.UserAdapter
 import dev.jahidhasanco.assesment.presentation.viewmodel.StorageViewModel
-import dev.jahidhasanco.assesment.utils.cashing.DownloadResult
-import dev.jahidhasanco.assesment.utils.cashing.Downloader
+import dev.jahidhasanco.assesment.utils.FileUtils.getRootDirPath
+import dev.jahidhasanco.assesment.utils.temp.PdfTempData
 import dev.jahidhasanco.assesment.utils.temp.UserTempData
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
 
 
@@ -45,10 +42,9 @@ class MainActivity : AppCompatActivity(), OnUserClickListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
+        PRDownloader.initialize(applicationContext)
         storageViewModel.getUser()
         userAdapter.setOnItemClickListener(this)
-
-        binding.progressBarH.max = 100
 
         lifecycle.coroutineScope.launchWhenCreated {
             storageViewModel.getUserDataStatus.collect {
@@ -106,10 +102,16 @@ class MainActivity : AppCompatActivity(), OnUserClickListener {
             name.text = user.name
             address.text = "Country: ${user.country}, City: ${user.city}"
             var skillsWithComma = ""
+            var c = 0
             user.skill.forEach {
-                skillsWithComma += "$it, "
+                skillsWithComma += if (c != user.skill.size - 1) {
+                    "$it, "
+                } else {
+                    it
+                }
+                c++
             }
-            skillsWithComma.dropLast(2)
+            skillsWithComma.dropLast(3)
             skills.text = skillsWithComma
             dob.text = user.dateOfBirth
             resume.text = user.resumeTitle
@@ -146,51 +148,40 @@ class MainActivity : AppCompatActivity(), OnUserClickListener {
     }
 
     override fun onItemResumeClick(user: User) {
-        cashingPdfFile(user.resume)
+        binding.progressBar.visibility = View.VISIBLE
+        downloadPdfFromInternet(user.resume, getRootDirPath(this), user.resumeTitle)
     }
 
-    private fun cashingPdfFile(resume: String) {
-        CoroutineScope(Dispatchers.IO).launch {
-            Downloader.downloadFile(
-                this@MainActivity, resume
-            )
-                .collect {
-                    withContext(Dispatchers.Main) {
-                        when (it) {
-                            is DownloadResult.Success -> {
-                                Toast
-                                    .makeText(this@MainActivity, "Load success", Toast.LENGTH_LONG)
-                                    .show()
-                                binding.progressBarH.visibility = View.GONE
-                                showPdf(it.output)
-                            }
-                            is DownloadResult.Error -> {
-                                Log.e("Download", "Error: ${it.message}")
-                            }
-                            is DownloadResult.Progress -> {
-                                binding.progressBarH.visibility = View.VISIBLE
-                                binding.progressBarH.progress = it.progress
-                            }
-                        }
+    private fun downloadPdfFromInternet(url: String, dirPath: String, fileName: String) {
+        PRDownloader.download(
+            url,
+            dirPath,
+            fileName
+        ).build()
+            .start(object : OnDownloadListener {
+                override fun onDownloadComplete() {
+                    Toast.makeText(this@MainActivity, "Download Complete", Toast.LENGTH_LONG)
+                        .show()
+                    val downloadedFile = File(dirPath, fileName)
+                    binding.progressBar.visibility = View.GONE
+                    Intent(this@MainActivity, PdfViewActivity::class.java).also {
+                        PdfTempData.clear()
+                        PdfTempData.addPdf(downloadedFile)
+                        startActivity(it)
                     }
                 }
-        }
+
+                override fun onError(error: com.downloader.Error?) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Error in downloading file : $error",
+                        Toast.LENGTH_LONG
+                    )
+                        .show()
+                }
+
+            })
     }
 
-    private fun showPdf(f: File) {
-        Toast.makeText(this, "Show pdf ${f.canRead()}", Toast.LENGTH_SHORT).show()
-        val builder = VmPolicy.Builder()
-        StrictMode.setVmPolicy(builder.build())
-        val intent = Intent(Intent.ACTION_VIEW)
-        intent.setDataAndType(Uri.parse(f.toString()), "application/pdf")
-        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
-        intent.flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
-        try {
-            startActivity(intent)
-        } catch (e: ActivityNotFoundException) {
-            Toast.makeText(this, "No Application available to view pdf", Toast.LENGTH_LONG).show()
-        }
-
-    }
 }
 

@@ -37,10 +37,15 @@ class UserAdapter(private val userList: MutableList<User> = mutableListOf()) :
                 name.text = user.name
                 address.text = "Country: ${user.country}, City: ${user.city}"
                 var skillsWithComma = ""
+                var c = 0
                 user.skill.forEach {
-                    skillsWithComma += "$it, "
+                    skillsWithComma += if (c != user.skill.size - 1) {
+                        "$it, "
+                    } else {
+                        it
+                    }
+                    c++
                 }
-                skillsWithComma.dropLast(2)
                 skills.text = skillsWithComma
                 dob.text = user.dateOfBirth
                 resume.text = user.resumeTitle

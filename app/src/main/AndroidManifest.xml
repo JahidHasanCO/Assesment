@@ -2,9 +2,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <uses-permission
-        android:name="android.permission.QUERY_ALL_PACKAGES"
-        tools:ignore="QueryAllPackagesPermission" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission
@@ -25,20 +22,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Assesment"
         tools:targetApi="31">
-        <activity
-            android:name=".presentation.activity.EditUserActivity"
-            android:exported="false">
-            <meta-data
-                android:name="android.app.lib_name"
-                android:value="" />
-        </activity>
-        <activity
-            android:name=".presentation.activity.AddDetailsActivity"
-            android:exported="false">
-            <meta-data
-                android:name="android.app.lib_name"
-                android:value="" />
-        </activity>
+        <activity android:name=".presentation.activity.PdfViewActivity" />
+        <activity android:name=".presentation.activity.EditUserActivity" />
+        <activity android:name=".presentation.activity.AddDetailsActivity" />
         <activity
             android:name=".presentation.activity.MainActivity"
             android:exported="true">
@@ -62,7 +48,6 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_path" />
         </provider>
-
     </application>
 
 </manifest>
